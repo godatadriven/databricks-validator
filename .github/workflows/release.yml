@@ -1,0 +1,80 @@
+name: release
+
+on:  # yamllint disable-line rule:truthy
+  workflow_dispatch:
+    inputs:
+      bump_level:
+        type: choice
+        description: Select bump level
+        required: true
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write   # push the bump commit and the tag, and create the release
+  id-token: write   # PyPI publishing over OIDC, so there is no token to hold
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment: release
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the tag needs the full history
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Bump the version everywhere it is written down
+        run: |
+          set -eux
+          git config user.email "github-actions@users.noreply.github.com"
+          git config user.name "github-actions"
+
+          PREVIOUS=$(uv version --short)
+          uv version --bump '${{ github.event.inputs.bump_level }}'
+          VERSION=$(uv version --short)
+
+          # The published hook ids name the image tag, and the README tells people which
+          # rev to pin. Both went stale between releases when they were updated by hand.
+          sed -i "s/:v${PREVIOUS}$/:v${VERSION}/" .pre-commit-hooks.yaml
+          sed -i "s/v${PREVIOUS}/v${VERSION}/g" README.md
+          sed -i "s/__version__ = \"${PREVIOUS}\"/__version__ = \"${VERSION}\"/" \
+            src/databricks_validator/__init__.py
+
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing changed after the bump." >&2
+            exit 1
+          fi
+          git commit -m "Release v${VERSION}"
+          git tag "v${VERSION}"
+          git push origin HEAD:main
+          git push origin "v${VERSION}"
+
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: uv build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
+
+      # Publishing the release is what the docker workflow watches for to build and push
+      # the image tagged with this version.
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${VERSION}" \
+            --title "v${VERSION}" \
+            --generate-notes \
+            --notes "PyPI: https://pypi.org/project/databricks-validator/${VERSION}/"

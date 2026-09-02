@@ -1,0 +1,70 @@
+default_stages: [pre-commit]
+
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.6.0
+  hooks:
+  - id: trailing-whitespace
+  - id: end-of-file-fixer
+  - id: check-yaml
+  - id: check-json
+    # This fixture is broken on purpose, to prove the validator rejects it.
+    exclude: ^tests/fixtures/invalid-json\.lvdash\.json$
+  - id: check-added-large-files
+  - id: detect-private-key
+  - id: check-merge-conflict
+  - id: check-executables-have-shebangs
+
+- repo: https://github.com/adrienverge/yamllint.git
+  rev: v1.35.1
+  hooks:
+  - id: yamllint
+    args: [--strict]
+
+- repo: https://github.com/igorshubovych/markdownlint-cli
+  rev: v0.41.0
+  hooks:
+  - id: markdownlint
+
+- repo: https://github.com/hadolint/hadolint
+  rev: v2.12.0
+  hooks:
+  - id: hadolint-docker
+
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.16.5
+  hooks:
+  - id: ruff-check
+    args: [--fix]
+  - id: ruff-format
+
+# ty has no published hook repository yet, so it runs out of the project's own environment.
+# uv sync has to have been run once; CI does it explicitly.
+- repo: local
+  hooks:
+  - id: ty
+    name: Type check with ty
+    entry: uv run --frozen ty check
+    language: system
+    types: [python]
+    pass_filenames: false
+
+# Dogfooding: check the examples with the hook this repository ships.
+#
+# Only examples/cleaned/ is checked. examples/raw/ holds the dashboards exactly as the
+# Databricks UI exported them, violations and all, so that examples/README.md has something
+# to document the cleanup against; running the hook over them would fail every commit by
+# design. tests/fixtures/ is likewise broken on purpose, and the pyspark tests write their
+# deliberately messy python into a temporary directory rather than into the repository.
+#
+# This runs the validator out of the project's own environment rather than through one of
+# the shipped hook ids, because a `repo: local` hook cannot install the repository it lives
+# in.
+- repo: local
+  hooks:
+  - id: databricks-validator
+    name: Validate embedded SQL
+    entry: uv run --frozen databricks-validator
+    language: system
+    types_or: [json, python]
+    files: ^examples/cleaned/.*\.lvdash\.json$

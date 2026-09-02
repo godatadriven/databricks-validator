@@ -1,0 +1,114 @@
+name: Docker Build CI
+
+on:  # yamllint disable-line rule:truthy
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+    tags:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+env:
+  DOCKER_IMAGE: ghcr.io/${{ github.repository_owner }}/databricks-validator
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          # Load into the local daemon so the unit tests can run against the image
+          load: true
+          tags: ${{ env.DOCKER_IMAGE }}:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.event.repository.clone_url }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          platforms: linux/amd64
+
+      # The test stage is the published image plus pytest and the tests, so what the suite
+      # exercises is the install that ships rather than a rebuild of it. Everything below
+      # the target is shared with the step above, so this reuses those layers.
+      - name: Build test image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          target: test
+          push: false
+          load: true
+          tags: ${{ env.DOCKER_IMAGE }}:test
+          platforms: linux/amd64
+
+      - name: Run unit tests
+        # As in the pre-commit workflow: a skipped test here would mean coverage was
+        # silently lost, so a missing example fails the build instead.
+        run: |
+          docker run --rm \
+            --env DASHBOARD_SQL_REQUIRE_ALL=1 \
+            ${{ env.DOCKER_IMAGE }}:test
+
+      # Only the steps below push, and neither of them runs on a pull request, so a pull
+      # request has no reason to hold registry credentials at all. Gating this also keeps
+      # the job working for a pull request from a fork, where the token is read only and
+      # the login would fail.
+      - name: Log in to GitHub Docker Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push latest image
+        # Build and push because of multi platform build
+        if: github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          provenance: false
+          sbom: false
+          tags: ${{ env.DOCKER_IMAGE }}:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.event.repository.clone_url }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          platforms: linux/amd64,linux/arm64
+
+      - name: Push release image
+        # Build and push because of multi platform build
+        if: startsWith(github.event.release.tag_name, 'v')
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          provenance: false
+          sbom: false
+          tags: ${{ env.DOCKER_IMAGE }}:${{ github.event.release.tag_name }}
+          labels: |
+            org.opencontainers.image.source=${{ github.event.repository.clone_url }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          platforms: linux/amd64,linux/arm64

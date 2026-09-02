@@ -1,0 +1,55 @@
+name: pre-commit CI
+
+on:  # yamllint disable-line rule:truthy
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+  # Lets the checks be started by hand from the Actions tab, which is also the way to get
+  # them onto a pull request whose own events never fired.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to a branch makes the run already going for it pointless.
+concurrency:
+  group: pre-commit-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+    - uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+    # The ty and dogfooding hooks run out of the project's own environment, so it has to
+    # exist before pre-commit starts. --frozen fails rather than silently relocking, which
+    # is what makes the pinned sqlfluff version mean something.
+    - name: Install the project
+      run: uv sync --group dev --frozen
+    - uses: pre-commit/action@v3.0.1
+
+  # The suite is fast and needs no docker, so it runs across every supported interpreter
+  # here rather than only against the image.
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.11', '3.12', '3.13']
+    steps:
+    - uses: actions/checkout@v4
+    - uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+    - name: Run unit tests
+      # A skipped test here would mean coverage was silently lost.
+      env:
+        DASHBOARD_SQL_REQUIRE_ALL: '1'
+      run: uv run --frozen --python ${{ matrix.python-version }} pytest

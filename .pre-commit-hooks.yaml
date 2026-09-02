@@ -1,0 +1,68 @@
+# The python hooks need nothing but python: pre-commit builds a virtualenv and installs
+# sqlfluff into it. The docker hooks at the bottom are for repositories that would rather
+# pull an image than build an environment.
+#
+# The ids from the two tools this merges are kept, so a repository that pinned one of them
+# keeps working by changing only its `repo:` and `rev:`.
+
+# --- both formats at once ---------------------------------------------------------------
+- id: databricks-validator
+  name: Validate embedded SQL
+  description: Extracts the SQL from Lakeview dashboards and spark.sql() calls and lints it.
+  entry: databricks-validator
+  language: python
+  types_or: [json, python]
+  files: (\.lvdash\.json|\.py)$
+- id: databricks-validator-fix
+  name: Fix embedded SQL
+  description: Extracts the SQL from Lakeview dashboards and spark.sql() calls and fixes it.
+  entry: databricks-validator --fix
+  language: python
+  types_or: [json, python]
+  files: (\.lvdash\.json|\.py)$
+
+# --- dashboards only ----------------------------------------------------------------------
+- id: validate-dashboard-sql-python
+  name: Validate SQL in Databricks dashboards
+  description: Extracts the inline SQL from Lakeview dashboards and lints it with sqlfluff.
+  entry: validate-dashboard-sql
+  language: python
+  types: [json]
+  files: \.lvdash\.json$
+
+# --- python only ---------------------------------------------------------------------------
+- id: sqlfluff-pyspark-lint
+  name: Lint spark.sql strings
+  description: Lints the SQL passed to spark.sql() in python files with sqlfluff.
+  entry: sqlfluff-pyspark
+  language: python
+  types: [python]
+- id: sqlfluff-pyspark-fix
+  name: Fix spark.sql strings
+  description: Fixes the SQL passed to spark.sql() in python files with sqlfluff.
+  entry: sqlfluff-pyspark --fix
+  language: python
+  types: [python]
+
+# --- dashboards, through docker --------------------------------------------------------------
+- id: validate-dashboard-sql
+  name: Validate SQL in Databricks dashboards
+  description: Extracts the inline SQL from Lakeview dashboards and lints it with sqlfluff.
+  entry: /bin/validate-dashboard-sql
+  language: docker
+  types: [json]
+  files: \.lvdash\.json$
+- id: validate-dashboard-sql-docker-latest
+  name: Validate SQL in Databricks dashboards with latest docker
+  description: Extracts the inline SQL from Lakeview dashboards and lints it with sqlfluff.
+  language: docker_image
+  entry: --entrypoint /bin/validate-dashboard-sql ghcr.io/godatadriven/databricks-validator:latest
+  types: [json]
+  files: \.lvdash\.json$
+- id: validate-dashboard-sql-docker-release
+  name: Validate SQL in Databricks dashboards with released docker
+  description: Extracts the inline SQL from Lakeview dashboards and lints it with sqlfluff.
+  language: docker_image
+  entry: --entrypoint /bin/validate-dashboard-sql ghcr.io/godatadriven/databricks-validator:v2.0.0
+  types: [json]
+  files: \.lvdash\.json$

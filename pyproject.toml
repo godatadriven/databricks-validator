@@ -1,0 +1,62 @@
+[project]
+name = "databricks-validator"
+version = "2.0.0"
+description = "Extract the SQL embedded in Databricks dashboards and pyspark code, and lint or fix it with sqlfluff."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+  { name = "Kris Geusebroek", email = "krisgeus@gmail.com" },
+  { name = "Daniel Tom", email = "d.e.tom89@gmail.com" },
+]
+keywords = ["databricks", "lakeview", "dashboard", "pyspark", "sqlfluff", "pre-commit"]
+classifiers = [
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development :: Quality Assurance",
+]
+
+# sqlfluff is pinned rather than ranged: it is the thing whose output this tool reports, so
+# a floating version would change what a commit is judged against without anything in this
+# repository moving. The docker image pins the same version through this file.
+dependencies = ["sqlfluff==4.3.0"]
+
+[project.urls]
+Homepage = "https://github.com/godatadriven/databricks-validator"
+Issues = "https://github.com/godatadriven/databricks-validator/issues"
+
+[project.scripts]
+databricks-validator = "databricks_validator.cli:main"
+# The two commands this tool merges, kept so that a pinned hook keeps working.
+validate-dashboard-sql = "databricks_validator.compat.validate_dashboard_sql:main"
+sqlfluff-pyspark = "databricks_validator.compat.sqlfluff_pyspark:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/databricks_validator"]
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.14", "ty>=0.0.1a1"]
+
+[tool.ruff]
+line-length = 96
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.ty.environment]
+python-version = "3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Show the reason for every skip: a skipped test here means coverage was silently lost.
+addopts = "-ra"
