@@ -117,7 +117,7 @@ The `databricks-validator` hook covers both formats:
 ```yaml
 repos:
 - repo: https://github.com/godatadriven/databricks-validator
-  rev: v3.0.1
+  rev: v3.0.0
   hooks:
   - id: databricks-validator
 ```
@@ -133,7 +133,7 @@ It runs on `*.lvdash.json` and `*.py`. To check only one of them, use the narrow
 | `sqlfluff-pyspark-fix` | `*.py` | no |
 | `validate-dashboard-sql` | `*.lvdash.json` | yes, built here |
 | `validate-dashboard-sql-docker-latest` | `*.lvdash.json` | yes, `:latest` |
-| `validate-dashboard-sql-docker-release` | `*.lvdash.json` | yes, `:v3.0.1` |
+| `validate-dashboard-sql-docker-release` | `*.lvdash.json` | yes, `:v3.0.0` |
 
 The docker ids build or pull an image instead of building a virtualenv; they exist for
 repositories that would rather pull an image than have pre-commit install anything. They do
@@ -150,14 +150,14 @@ pre-commit run databricks-validator-fix --all-files
 An ordinary python package, so `uvx` runs it without installing anything permanently:
 
 ```shell
-uvx --from git+https://github.com/godatadriven/databricks-validator@v3.0.1 \
+uvx --from git+https://github.com/godatadriven/databricks-validator@v3.0.0 \
   databricks-validator dashboards/*.lvdash.json jobs/*.py
 ```
 
 Installed into an environment of its own:
 
 ```shell
-pip install git+https://github.com/godatadriven/databricks-validator@v3.0.1
+pip install git+https://github.com/godatadriven/databricks-validator@v3.0.0
 databricks-validator dashboards/*.lvdash.json
 ```
 
@@ -198,7 +198,7 @@ Pass options through `args:`.
 
 ```yaml
 - repo: https://github.com/godatadriven/databricks-validator
-  rev: v3.0.1
+  rev: v3.0.0
   hooks:
   - id: databricks-validator
     args: [--dialect, sparksql, --expression-mode, 'off']
