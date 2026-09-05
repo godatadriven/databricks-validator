@@ -1,6 +1,6 @@
 [project]
 name = "databricks-validator"
-version = "3.0.0"
+version = "3.0.1"
 description = "Extract the SQL embedded in Databricks dashboards and pyspark code, and lint or fix it with sqlfluff."
 readme = "README.md"
 requires-python = ">=3.10"

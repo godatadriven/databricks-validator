@@ -63,6 +63,6 @@
   name: Validate SQL in Databricks dashboards with released docker
   description: Extracts the inline SQL from Lakeview dashboards and lints it with sqlfluff.
   language: docker_image
-  entry: --entrypoint /bin/validate-dashboard-sql ghcr.io/godatadriven/databricks-validator:v3.0.0
+  entry: --entrypoint /bin/validate-dashboard-sql ghcr.io/godatadriven/databricks-validator:v3.0.1
   types: [json]
   files: \.lvdash\.json$
