@@ -21,7 +21,7 @@ classifiers = [
 # sqlfluff is pinned rather than ranged: it is the thing whose output this tool reports, so
 # a floating version would change what a commit is judged against without anything in this
 # repository moving. The docker image pins the same version through this file.
-dependencies = ["sqlfluff==4.3.0"]
+dependencies = ["sqlfluff==4.4.0"]
 
 [project.urls]
 Homepage = "https://github.com/godatadriven/databricks-validator"
